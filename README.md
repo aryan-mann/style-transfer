@@ -4,7 +4,6 @@
 Any visit to an art museum leaves the observer with a sense of the style of each individual work. This project aims to create a process by which the style of one painting is transferred to another algorithmically. The result is a beautiful fusion between the content and style between two art pieces.
 
 ## VGG-19 Architecture
-# Notes
 
 #### Layers of the VGG-19 Image Classification Network
 ```
@@ -62,9 +61,8 @@ _________________________________________________________________
 ```
 
 ## Citations
-- How to get the output from an intermediate layer in the VGG using backend functions: https://stackoverflow.com/questions/52230874/how-to-correctly-use-an-intermediate-layer-of-a-vgg-model
 - How to pre-process the image to use as input for the VGG-19 network: https://www.programcreek.com/python/example/92217/keras.applications.vgg19.preprocess_input
-- 
+- How to get the output from an intermediate layer in the VGG using backend functions: https://stackoverflow.com/questions/52230874/how-to-correctly-use-an-intermediate-layer-of-a-vgg-model 
 
 ## References 
 - ***"A Neural Algorithm of Artistic Style"*** by L. Gatys, A. Ecker, and M. Bethge: http://arxiv.org/abs/1508.06576.
