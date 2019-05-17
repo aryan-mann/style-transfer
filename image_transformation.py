@@ -1,6 +1,6 @@
+import numpy as np
 from keras.applications import vgg19
 from keras.preprocessing.image import load_img, img_to_array
-import numpy as np
 
 output_height = 512
 output_width = 512
@@ -49,14 +49,13 @@ def from_vgg(vgg_input_image):
     # Convert the image from a long array into a 2D matrix with 3 color channels
     vgg_input_image = vgg_input_image.reshape((output_height, output_width, 3))
 
-    # Remove the mean-pixel or something
-    # Insert Citation for this "trick"
+    # Remove the mean-pixel, taken from GitHub issue <CITE>
     vgg_input_image[:, :, 0] += 103.939
     vgg_input_image[:, :, 1] += 116.779
     vgg_input_image[:, :, 2] += 123.68
 
-    # Adding the mean-pixel back in (WHY?)
-    #for i in [0, 1, 2]:
+    # My attempt at adding the mean-pixel back in
+    # for i in [0, 1, 2]:
     #    vgg_input_image[:, :, i] += np.mean(vgg_input_image[:, :, i])
 
     # BGR -> RGB
@@ -65,3 +64,16 @@ def from_vgg(vgg_input_image):
     # Make sure all the values are between 0 and 255
     vgg_input_image = np.clip(vgg_input_image, 0, 255).astype('uint8')
     return vgg_input_image
+
+
+def get_random_image():
+    return np.random.random_integers(0, 255, (output_height, output_width, 3))
+
+
+def average_images(path_1, path_2):
+    img_1 = load_img(path_1, target_size=(output_height, output_width))
+    img_1 = img_to_array(img_1)
+    img_2 = load_img(path_2, target_size=(output_height, output_width))
+    img_2 = img_to_array(img_2)
+
+    return np.clip((img_1 + img_2)/2, 0, 255).astype('uint8')

@@ -60,10 +60,15 @@ Non-trainable params: 0
 _________________________________________________________________
 ```
 
+## Image Citations
+**Style Images**
+- "Starry Night" by Vincent van Gogh, Oil on Canvas. Open Access, url: a.gov/collection/art-object-page.72328.html
+- "At the Water's Edge" by Paul Cézanne, Oil on Canvas. Open Access, url: https://www.nga.gov/collection/art-object-page.53119.html
+
 ## Citations
 - How to pre-process the image to use as input for the VGG-19 network: https://www.programcreek.com/python/example/92217/keras.applications.vgg19.preprocess_input
 - How to get the output from an intermediate layer in the VGG using backend functions: https://stackoverflow.com/questions/52230874/how-to-correctly-use-an-intermediate-layer-of-a-vgg-model 
-
+- How to create a new directory: https://stackoverflow.com/questions/1274405/how-to-create-new-folder
 ## References 
 - ***"A Neural Algorithm of Artistic Style"*** by L. Gatys, A. Ecker, and M. Bethge: http://arxiv.org/abs/1508.06576.
 - ***"Perceptual Losses for Real-Time Style Transfer and Super-Resolution"*** by J. Johnson, A. Alahi, Li Fei-Fei: https://arxiv.org/abs/1603.08155

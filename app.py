@@ -1,34 +1,90 @@
+import os
+import re
 import sys
-from keras.applications import vgg19
-from keras import backend
+
 import numpy as np
+from keras import backend
+from keras.applications import vgg19
 from matplotlib import pyplot as pp
 from scipy.optimize import fmin_l_bfgs_b
 
-####################
-# Input Parameters #
-####################
-from image_transformation import to_vgg, from_vgg, initialize_vgg_transforms
+from enums import OUTPUT_TYPE, IMAGE_INITIALIZATION_SCHEME
+from image_transformation import to_vgg, from_vgg, initialize_vgg_transforms, get_random_image, average_images
 from loss_functions import content_loss, style_loss, initialize_loss_functions
 
-# The paths to our content and style image
-content_image_path = 'images/pics/chicago.jpg'
-style_image_path = 'images/styles/unknown.jpg'
-
-# Resolve circular dependencies via initialization function
-output_height, output_width = (512, 512)
-initialize_vgg_transforms(output_height, output_width)
-initialize_loss_functions(output_height, output_width)
+####################
+# META INFORMATION #
+####################
+loss_history = []
 
 #############################
 # Style Transfer Parameters #
 #############################
-influence_of_content = 0.025
-influence_of_style = 100
+influence_of_content = 0.
+influence_of_style = 1
+
+# The paths to our content and style image
+content_image_path = 'images/pics/white_rose.jpg'
+style_image_path = 'images/styles/waters_edge.jpg'
+# Each iteration 'i' will be saved at: 'images/results/{output_prefix}/(i).{output_format}'
+output_prefix = 'C2S2t'
+output_format = 'png'
+
+# How should the results of the training be shown.
+# Reference "enums.py" to know more about the options
+output_type = OUTPUT_TYPE.ONLY_FINAL
+
+# How should we initialize our initial guess
+guess_image_initialization_scheme = IMAGE_INITIALIZATION_SCHEME.CONTENT_IMAGE
+
+# The layers to use for comparing style
+content_layer = 'block5_conv2'
+style_layers = [
+    'block1_conv1',
+    'block2_conv1',
+    'block3_conv1',
+    'block4_conv1',
+    'block5_conv1'
+]
+
+
+def base_save_location():
+    scheme_str = str(re.search('.+\.(.+)', str(guess_image_initialization_scheme)).group(1))
+    return 'images/results/' + output_prefix + '__' + scheme_str.lower()
+
+
+def iteration_save_location(i):
+    return base_save_location() + '/(' + str(i) + ').' + output_format
+
+
+# Create the directory for the output
+if not os.path.exists(base_save_location()):
+    os.makedirs(base_save_location())
 
 ####################
-# Other Parameters #
+# INITIALIZE STUFF #
 ####################
+
+# Resolve circular dependencies via initialization functions
+output_height, output_width = (512, 512)
+initialize_vgg_transforms(output_height, output_width)
+initialize_loss_functions(output_height, output_width)
+
+# Initialize our initial guess
+guess_image = None
+# Random Noise
+if guess_image_initialization_scheme == IMAGE_INITIALIZATION_SCHEME.RANDOM_NOISE:
+    guess_image = to_vgg(get_random_image(), is_path=False)
+# Content Image
+elif guess_image_initialization_scheme == IMAGE_INITIALIZATION_SCHEME.CONTENT_IMAGE:
+    guess_image = to_vgg(content_image_path)
+# Style Image
+elif guess_image_initialization_scheme == IMAGE_INITIALIZATION_SCHEME.STYLE_IMAGE:
+    guess_image = to_vgg(style_image_path)
+# Average of Content and Style Image
+elif guess_image_initialization_scheme == IMAGE_INITIALIZATION_SCHEME.STYLE_CONTENT_MERGER:
+    guess_image = to_vgg(average_images(content_image_path, style_image_path))
+
 should_run_optimizer = False if (sys.argv[1] == "False") else True
 
 # Create content, style, and guess inputs for the VGG-Network
@@ -56,19 +112,23 @@ layer_name_to_output = dict([(layer.name, layer.output) for layer in model.layer
 loss = backend.variable(0)
 
 # ********* ADDING THE CONTENT LOSS *********#
-feature_map = layer_name_to_output['block5_conv2']
+feature_map = layer_name_to_output[content_layer]
 content_image_features = feature_map[0, :, :, :]
 guess_features = feature_map[2, :, :, :]
-loss += influence_of_content * content_loss(content_image_features, guess_features)
+instance_content_loss = content_loss(content_image_features, guess_features)
+loss += influence_of_content * instance_content_loss
 
-# ********* ADDING THE CONTENT LOSS *********#
-style_layers = ['block5_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
+# ********* ADDING THE STYLE LOSS *********#
+
+instance_style_loss = 0
 for item in style_layers:
     feature_map = layer_name_to_output[item]
     style_features = feature_map[1, :, :, :]
     guess_features = feature_map[2, :, :, :]
+    layer_style_loss = (influence_of_style / len(style_layers)) * style_loss(style_features, guess_features)
+    instance_style_loss += layer_style_loss
 
-    loss += (influence_of_style / len(style_layers)) * style_loss(style_features, guess_features)
+    loss += layer_style_loss
 
 # *********  GRADIENT AND LOSS CALCULATION FOR SciPy Optimizer  *********#
 guess_gradients = backend.gradients(loss, guess_tensor)
@@ -97,10 +157,7 @@ def get_cached_loss(guensor):
     global cached_loss, cached_gradients
     cached_loss = step_results[0]
 
-    if len(step_results[1:]) == 1:
-        cached_gradients = step_results[1].flatten().astype('float64')
-    else:
-        cached_gradients = np.array(step_results[1:]).flatten().astype('float64')
+    cached_gradients = step_results[1].flatten().astype('float64')
 
     return cached_loss
 
@@ -108,8 +165,8 @@ def get_cached_loss(guensor):
 def get_cached_gradients(guensor):
     """
     Get the gradient of the latest 
-    :param guensor:
-    :return:
+    :param guensor: Not used
+    :return: A matrix of size (output_height, output_width, 3) representing the gradient
     """
     global cached_loss, cached_gradients
     gradient_to_return = cached_gradients
@@ -119,26 +176,42 @@ def get_cached_gradients(guensor):
 
 
 # ****************************#
-# RUN OPTIMIZATION ALGORITHM #
+#  RUN OPTIMIZATION ALGORITHM #
 # ****************************#
 
-# Set initial guess to a random image
-#guess_image = to_vgg(np.random.random_integers(0, 255, (output_height, output_width, 3)), is_path=False)
-# Set initial guess to the content image
-guess_image = to_vgg(content_image_path, is_path=True)
-
-grid_x, grid_y = (2, 2)
+# --------------- #
+# DISPLAY OPTIONS #
+# --------------- #
+# Number of iterations run: grid_x * grid_y
+#   If OUTPUT_TYPE.PROGRESSION, then each iteration will be
+#   display in a grid of size grid_x by grid_y
+grid_x, grid_y = (100, 1)
 pp.figure()
-for i in range(grid_x * grid_y):
-    print('Start of iteration', (i+1))
+
+print("Starting Optimization Algorithm")
+for count in range(grid_x * grid_y):
 
     guess_image, iteration_loss, _ = fmin_l_bfgs_b(get_cached_loss, guess_image.flatten(),
-                                                   fprime=get_cached_gradients, maxfun=10)
+                                                   fprime=get_cached_gradients, maxfun=20)
 
-    print('Current loss value:', iteration_loss)
+    print("Iteration ", count, " loss: ", iteration_loss)
+    loss_history.append(iteration_loss)
 
-    pp.subplot(grid_x, grid_y, (i + 1))
+    resultant_img = from_vgg(guess_image.copy())
+    pp.imsave(iteration_save_location(count), resultant_img)
+
+    if output_type is OUTPUT_TYPE.PROGRESSION:
+        pp.subplot(grid_x, grid_y, (count + 1))
+        pp.imshow(from_vgg(guess_image.copy()))
+        pp.title("Guess " + str(count + 1))
+
+if output_type is OUTPUT_TYPE.ONLY_FINAL:
     pp.imshow(from_vgg(guess_image.copy()))
-    pp.title("Guess " + str(i+1))
+    pp.title("Final Output (" + str(grid_x * grid_y) + " iterations)")
 
+pp.figure()
+pp.plot(loss_history)
+pp.title("Loss per Iteration")
+pp.xlabel("Iteration")
+pp.ylabel("Total Loss Value")
 pp.show()
