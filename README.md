@@ -1,5 +1,13 @@
 # Style Transfer
 *by Aryan Mann and Stefan Ilic*
+<p align="center">
+  <img width="256" height="256" src="https://github.com/aryan-mann/style-transfer/blob/master/images/results/C1S1__done/(99).png">
+  <img width="256" height="256" src="https://github.com/aryan-mann/style-transfer/blob/master/images/results/C2S2__done/(99).png">
+</p>
+<p align="center">
+  <img width="256" height="256" src="https://github.com/aryan-mann/style-transfer/blob/master/images/results/C1S2__done/(99).png">
+  <img width="256" height="256" src="https://github.com/aryan-mann/style-transfer/blob/master/images/results/C2S1__done/(99).png">
+</p>
 
 Any visit to an art museum leaves the observer with a sense of the style of each individual work. This project aims to create a process by which the style of one painting is transferred to another algorithmically. The result is a beautiful fusion between the content and style between two art pieces.
 
